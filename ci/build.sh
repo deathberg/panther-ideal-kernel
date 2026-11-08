@@ -12,7 +12,7 @@ tar -xf x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar
 
 git clone https://github.com/TheWildJames/AnyKernel3.git -b "sultan-$CODENAME"
 git clone https://github.com/TheWildJames/kernel_patches.git
-git clone https://github.com/TheWildJames/android_kernel_google_tensynos --depth=1
+git clone https://github.com/kerneltoast/android_kernel_google_tensynos --depth=1
 git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
 
 cd android_kernel_google_tensynos
