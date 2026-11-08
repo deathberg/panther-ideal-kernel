@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# panther-ideal kernel build: Sultan gs201 (A16, 6.1) + KernelSU-Next built-in + SUSFS
-# Recipe follows the proven mrvokintos/Sultan_KernelSU_SUSFS flow.
+# panther-ideal kernel build: Sultan gs201 (A16, 6.1) + KernelSU-Next (pershoot dev-susfs) + SUSFS
+# Follows the current WildKernels recipe: pershoot fork ships SUSFS support natively,
+# susfs4ksu gets two pershoot coexistence commits cherry-picked. No fix-patch roulette.
 # usage: build.sh <variant: ksun-susfs|ksun|stock> <susfs_branch>
 set -e
 VARIANT="${1:-ksun-susfs}"
@@ -15,41 +16,30 @@ tar -xf x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar
 git clone https://github.com/TheWildJames/AnyKernel3.git -b "sultan-$CODENAME"
 git clone https://github.com/WildKernels/kernel_patches.git
 git clone https://github.com/kerneltoast/android_kernel_google_tensynos --depth=1
-if [ "$VARIANT" = "ksun-susfs" ]; then
-  git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
-fi
 
 cd "$CONFIG"
 
 if [ "$VARIANT" != "stock" ]; then
-  curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/dev/kernel/setup.sh" | bash -s dev
-  # Pin to the dev commit the WildKernels susfs_fix_patches/stable/v2.2.0 were written for (KSUN 33201, 2026-06-21)
-  git -C KernelSU-Next fetch --unshallow origin dev 2>/dev/null || git -C KernelSU-Next fetch origin dev
-  git -C KernelSU-Next checkout 30802e7260e2387176b9301377e88fc6fb0356b7
+  curl -LSs "https://raw.githubusercontent.com/pershoot/KernelSU-Next/dev-susfs/kernel/setup.sh" | bash -s dev-susfs
 fi
 
 if [ "$VARIANT" = "ksun-susfs" ]; then
-  SUSFS_VERSION="2.2.0"
+  cd "$GITHUB_WORKSPACE"
+  git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+  cd susfs4ksu
+  # pershoot coexistence fixes for KernelSU-Next (verified upstream combo)
+  git fetch https://gitlab.com/pershoot/susfs4ksu.git \
+    6387756d64b3ab9ececefc4523627a9ee05a7519 \
+    161c058fed5544a6573d87124f346dadd5c4962d
+  git cherry-pick 6387756d64b3ab9ececefc4523627a9ee05a7519
+  git cherry-pick 161c058fed5544a6573d87124f346dadd5c4962d
+  cd "$GITHUB_WORKSPACE/$CONFIG"
 
-  cp ../susfs4ksu/kernel_patches/50_add_susfs_in_${SUSFS_BRANCH}.patch ./
-  mkdir -p ./fs/ ./include/linux/
-  cp ../susfs4ksu/kernel_patches/fs/* ./fs/ 2>/dev/null || true
-  cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/ 2>/dev/null || true
-
-  echo "Patching KernelSU-Next for SUSFS..."
-  cd KernelSU-Next
-  cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
-  patch -p1 < 10_enable_susfs_for_ksu.patch || true
-  for p in "../../kernel_patches/next/susfs_fix_patches/stable/v${SUSFS_VERSION}/"*.patch; do
-    echo "applying $(basename "$p")"
-    patch -p1 < "$p" || true
-  done
-  cd ..
-
-  patch -p1 < "50_add_susfs_in_${SUSFS_BRANCH}.patch" || true
+  cp ../susfs4ksu/kernel_patches/fs/* ./fs/
+  cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+  patch -p1 < "../susfs4ksu/kernel_patches/50_add_susfs_in_${SUSFS_BRANCH}.patch"
 
   echo "Applying Sultan-specific patches..."
-  [ -f ../kernel_patches/sultan/fix_base.c.patch ] && patch -p1 < ../kernel_patches/sultan/fix_base.c.patch || true
   [ -f ../kernel_patches/sultan/sys.c_fix.patch ] && patch -p1 < ../kernel_patches/sultan/sys.c_fix.patch || true
 fi
 
@@ -61,6 +51,7 @@ if [ "$VARIANT" != "stock" ]; then
     if [ "$VARIANT" = "ksun-susfs" ]; then
       echo "CONFIG_KSU_SUSFS=y"
     else
+      echo "CONFIG_KSU_MANUAL_HOOKS=y"
       echo "CONFIG_KSU_SUSFS=n"
     fi
   } >> "$D"
