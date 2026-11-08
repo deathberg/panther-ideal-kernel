@@ -23,6 +23,9 @@ cd "$CONFIG"
 
 if [ "$VARIANT" != "stock" ]; then
   curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/dev/kernel/setup.sh" | bash -s dev
+  # Pin to the dev commit the WildKernels susfs_fix_patches/stable/v2.2.0 were written for (KSUN 33201, 2026-06-21)
+  git -C KernelSU-Next fetch --unshallow origin dev 2>/dev/null || git -C KernelSU-Next fetch origin dev
+  git -C KernelSU-Next checkout 30802e7260e2387176b9301377e88fc6fb0356b7
 fi
 
 if [ "$VARIANT" = "ksun-susfs" ]; then
