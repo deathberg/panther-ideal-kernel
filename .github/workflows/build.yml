@@ -1,0 +1,71 @@
+name: Build panther ideal kernel
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Build variant'
+        required: true
+        default: 'ksun-susfs'
+        type: choice
+        options: [ksun-susfs, ksun, stock]
+      susfs_branch:
+        description: 'susfs4ksu branch'
+        required: true
+        default: 'gki-android14-6.1'
+        type: string
+      make_release:
+        description: 'Create a GitHub Release with the zip'
+        required: true
+        default: true
+        type: boolean
+
+env:
+  CODENAME: gs201
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build kernel
+        run: bash ci/build.sh "${{ inputs.variant }}" "${{ inputs.susfs_branch }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ env.CODENAME }}-${{ inputs.variant }}
+          path: '*.zip'
+
+      - name: Collect .rej files on failure
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p rej
+          find . -name '*.rej' -exec cp --parents {} rej/ \; 2>/dev/null || true
+          (cd rej && zip -r ../rej-bundle.zip .) 2>/dev/null || echo "no rej"
+
+      - name: Upload .rej bundle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rej-${{ env.CODENAME }}-${{ inputs.variant }}
+          path: 'rej-bundle.zip'
+          if-no-files-found: ignore
+
+  release:
+    if: inputs.make_release
+    runs-on: ubuntu-latest
+    needs: build-kernel
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./dl
+      - name: Tag, release, upload assets
+        run: bash ci/release.sh "${{ inputs.variant }}"
