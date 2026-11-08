@@ -13,7 +13,7 @@ gunzip -f x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar.gz
 tar -xf x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar
 
 git clone https://github.com/TheWildJames/AnyKernel3.git -b "sultan-$CODENAME"
-git clone https://github.com/mrvokintos/kernel_patches.git
+git clone https://github.com/WildKernels/kernel_patches.git
 git clone https://github.com/kerneltoast/android_kernel_google_tensynos --depth=1
 if [ "$VARIANT" = "ksun-susfs" ]; then
   git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
@@ -26,7 +26,7 @@ if [ "$VARIANT" != "stock" ]; then
 fi
 
 if [ "$VARIANT" = "ksun-susfs" ]; then
-  SUSFS_VERSION="2.0.0"
+  SUSFS_VERSION="2.2.0"
 
   cp ../susfs4ksu/kernel_patches/50_add_susfs_in_${SUSFS_BRANCH}.patch ./
   mkdir -p ./fs/ ./include/linux/
@@ -37,12 +37,9 @@ if [ "$VARIANT" = "ksun-susfs" ]; then
   cd KernelSU-Next
   cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
   patch -p1 < 10_enable_susfs_for_ksu.patch || true
-  cp "../../kernel_patches/next/susfs_fix_patches/v${SUSFS_VERSION}/"*.patch ./
-  for p in fix_Makefile fix_allowlist.c fix_apk_sign.c fix_kernel_umount.c fix_ksu.c \
-           fix_ksud.c fix_selinux.c fix_setuid_hook.c fix_sucompat.c fix_supercalls.c \
-           overwrite_hook_mode ksu_toolkit; do
-    echo "applying ${p}.patch"
-    patch -p1 < "${p}.patch" || true
+  for p in "../../kernel_patches/next/susfs_fix_patches/stable/v${SUSFS_VERSION}/"*.patch; do
+    echo "applying $(basename "$p")"
+    patch -p1 < "$p" || true
   done
   cd ..
 
