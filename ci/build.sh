@@ -38,7 +38,15 @@ if [ "$VARIANT" = "ksun-susfs" ]; then
 
   cp ../susfs4ksu/kernel_patches/fs/* ./fs/
   cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-  patch -p1 < "../susfs4ksu/kernel_patches/50_add_susfs_in_${SUSFS_BRANCH}.patch"
+
+  # Sultan tree dropped the unused trace/hooks/blk.h include that the SUSFS
+  # patch expects as context in fs/namespace.c: restore the line + stub header.
+  if ! grep -q 'trace/hooks/blk.h' fs/namespace.c; then
+    sed -i '/^#include "internal.h"$/a #include <trace/hooks/blk.h>' fs/namespace.c
+    [ -f include/trace/hooks/blk.h ] || printf '/* Stub: unused, dropped by Google. */\n' > include/trace/hooks/blk.h
+  fi
+
+  patch -p1 < "../susfs4ksu/kernel_patches/50_add_susfs_in_${SUSFS_BRANCH}.patch" || true
 
   echo "Applying Sultan-specific patches..."
   [ -f ../kernel_patches/sultan/sys.c_fix.patch ] && patch -p1 < ../kernel_patches/sultan/sys.c_fix.patch || true
