@@ -27,6 +27,7 @@ if [ "$VARIANT" = "ksun-susfs" ]; then
   cd "$GITHUB_WORKSPACE"
   git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
   cd susfs4ksu
+  git config user.email "ci@build.local" && git config user.name "ci"
   # pershoot coexistence fixes for KernelSU-Next (verified upstream combo)
   git fetch https://gitlab.com/pershoot/susfs4ksu.git \
     6387756d64b3ab9ececefc4523627a9ee05a7519 \
